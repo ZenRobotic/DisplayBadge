@@ -7,21 +7,28 @@ namespace Display
     public class AdaFruitHtu21Df
     {
 
-        public AdaFruitHtu21Df() { I2c = new I2CDevice.Configuration(I2C_ADDRESS, I2C_ClockRateKHz); }
-        public I2CDevice.Configuration I2c { get; set; }
+        public AdaFruitHtu21Df()
+        {
+            I2cConfiguration = new I2CDevice.Configuration(I2C_ADDRESS, I2C_ClockRateKHz);
+            Bus = new I2CDevice(I2cConfiguration);
+        }
+       
+        public I2CDevice.Configuration I2cConfiguration { get; set; }
+        public I2CDevice Bus { get; set; }
+
 
         public Boolean begin()
         {
-
-            Wire.begin();
-
+            var buffer = new byte[1];
+            buffer[0] = 0xe7;
+            var transaction =  I2CDevice.CreateWriteTransaction(buffer);
+            Bus.Execute(new[] { transaction }, 1000);
             reset();
 
-            Wire.beginTransmission(HTU21DF_I2CADDR);
-            Wire.write(HTU21DF_READREG);
-            Wire.endTransmission();
-            Wire.requestFrom(HTU21DF_I2CADDR, 1);
-            return (Wire.read() == 0x2); // after reset should be 0x2
+           
+           
+            I2cConfiguration.requestFrom(HTU21DF_I2CADDR, 1);
+            return (I2cConfiguration.read() == 0x2); // after reset should be 0x2
 
 
         }
