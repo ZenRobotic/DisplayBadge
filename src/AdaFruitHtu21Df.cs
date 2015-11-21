@@ -6,7 +6,7 @@ namespace Display
 {
     public class AdaFruitHtu21Df
     {
-
+        private const byte ReadReg = 0xe7;
         public AdaFruitHtu21Df()
         {
             I2cConfiguration = new I2CDevice.Configuration(I2C_ADDRESS, I2C_ClockRateKHz);
@@ -19,15 +19,16 @@ namespace Display
 
         public Boolean begin()
         {
+
             var buffer = new byte[1];
-            buffer[0] = 0xe7;
+            buffer[0] = ReadReg;
             var transaction =  I2CDevice.CreateWriteTransaction(buffer);
             Bus.Execute(new[] { transaction }, 1000);
             reset();
 
            
            
-            I2cConfiguration.requestFrom(HTU21DF_I2CADDR, 1);
+            I2CDevice.CreateReadTransaction(, 1);
             return (I2cConfiguration.read() == 0x2); // after reset should be 0x2
 
 
