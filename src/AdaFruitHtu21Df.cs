@@ -1,12 +1,14 @@
 using System;
 using Microsoft.SPOT;
 using Microsoft.SPOT.Hardware;
+using System.Threading;
 
 namespace Display
 {
     public class AdaFruitHtu21Df
     {
         private const byte ReadReg = 0xe7;
+        private const byte Reset = 0xfe;
         public AdaFruitHtu21Df()
         {
             I2cConfiguration = new I2CDevice.Configuration(I2C_ADDRESS, I2C_ClockRateKHz);
@@ -19,23 +21,33 @@ namespace Display
 
         public Boolean begin()
         {
-
+            reset();
             var buffer = new byte[1];
+
             buffer[0] = ReadReg;
             var transaction =  I2CDevice.CreateWriteTransaction(buffer);
             Bus.Execute(new[] { transaction }, 1000);
-            reset();
 
-           
-           
-            I2CDevice.CreateReadTransaction(, 1);
-            return (I2cConfiguration.read() == 0x2); // after reset should be 0x2
+
+            buffer[0] = 0;
+            var readTx =           I2CDevice.CreateReadTransaction(buffer);
+            Bus.Execute(new [] { readTx }, 1000);
+
+            return (buffer[0] == 0x2); // after reset should be 0x2
 
 
         }
         public float readTemperature() { }
         public float readHumidity() { }
-        public void reset() { }
+        public void reset()
+        {
+            var buffer = new byte[1];
+            buffer[0] = Reset;
+            var transaction = I2CDevice.CreateWriteTransaction(buffer);
+            Bus.Execute(new[] { transaction }, 1000);
+            Thread.Sleep(15);
+            
+        }
 
         private Boolean readData() { }
         private float humidity;
