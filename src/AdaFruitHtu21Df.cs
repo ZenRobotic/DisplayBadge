@@ -39,44 +39,44 @@ namespace Display
 
         }
 
-        public float readTemperature() {
-  
-        // 1) write ReadTemp to Addr (Bus has address)
+        public float readTemperature()
+        { 
+            // 1) write ReadTemp to Addr (Bus has address)
             var buffer = new byte[1];
 
             buffer[0] = ReadTemp;
             var transaction = I2CDevice.CreateWriteTransaction(buffer);
             Bus.Execute(new[] { transaction }, 1000);
 			
-        // 2) wait 50 ms - delay between write and read
+            // 2) wait 50 ms - delay between write and read
             Thread.Sleep(50);
 			
-        // 3) read reply from Addr (Bus has address)
-            buffer[0] = 0;
+            // 3) read reply from Addr (Bus has address)
+            buffer = new byte[3];
+            
             var readTx = I2CDevice.CreateReadTransaction(buffer);
             Bus.Execute(new[] { readTx }, 1000);
 	
-		// 		a) we need to read 3 bytes, a 2 byte answer and a 1 byte CRC
-  Wire.requestFrom(HTU21DF_I2CADDR, 3);
-  while (!Wire.available()) {}
-
-  uint16_t t = Wire.read();
-  t <<= 8;
-  t |= Wire.read();
-
-  uint8_t crc = Wire.read();
+            // 		a) we need to read 3 bytes, a 2 byte answer and a 1 byte CRC
+            UInt16 t = buffer[0];
+            t = (UInt16)(t << 8);
+            t = (UInt16)(t + buffer[1]);
+            byte crc = buffer[2];
   
-        // 4) Does math to figure out temp.
-		// TODO: the math
-		
+            // 4) Does math to figure out temp.
+            float temp = t;
+            temp *= 175.72f;
+            temp /= 65536;
+            temp -= 46.85f;
 
-  float temp = t;
-  temp *= 175.72;
-  temp /= 65536;
-  temp -= 46.85;
+            return temp;
+        }
 
-  return temp; }
-        public float readHumidity() { }
+        public float readHumidity() 
+        {
+            return 60;
+        }
+ 
         public void reset()
         {
             var buffer = new byte[1];
@@ -86,8 +86,6 @@ namespace Display
             Thread.Sleep(15);
             
         }
-
-        private Boolean readData() { }
         private float humidity;
         private float temp;
         private ushort I2C_ADDRESS = 0x40;

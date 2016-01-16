@@ -11,11 +11,15 @@ namespace Display
 
         public static void Main()
         {
-            using (_display)
-            {
-                _display.Initialize();
-                _display.InvertDisplay(true);
-            }
+            //using (_display)
+            //{
+            //    _display.Initialize();
+            //    _display.InvertDisplay(true);
+            //}
+            var temp = new AdaFruitHtu21Df();
+            temp.begin();
+            var readTemp = temp.readTemperature();
+
         }
     }
 }
