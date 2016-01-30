@@ -47,16 +47,16 @@ namespace Display
             buffer[0] = ReadTemp;
             var transaction = I2CDevice.CreateWriteTransaction(buffer);
             Bus.Execute(new[] { transaction }, 1000);
-			
+            
             // 2) wait 50 ms - delay between write and read
             Thread.Sleep(50);
-			
+            
             // 3) read reply from Addr (Bus has address)
             buffer = new byte[3];
             
             var readTx = I2CDevice.CreateReadTransaction(buffer);
             Bus.Execute(new[] { readTx }, 1000);
-	
+    
             // 		a) we need to read 3 bytes, a 2 byte answer and a 1 byte CRC
             UInt16 t = buffer[0];
             t = (UInt16)(t << 8);
