@@ -1,40 +1,55 @@
 using System;
 using System.Threading;
+using Windows.Devices.Gpio;
 
 namespace Ssd1306Test
 {
     public sealed class AdaFruitSSD1306 : IDisposable
     {
         private const bool Data = true;
-        private const bool DisplayCommand = false;
+        private const GpioPinValue DisplayCommand = GpioPinValue.Low;
+        private const int ResetPin = 27;
+        private const int DcPin = 5;
 
-        private const int bufferSize = 1024;
+        private const int BufferSize = 1024;
         private const int Width = 128;
         private const int Height = 32;
         private const int I2CTransactionTimeout = 1000; // ms
 
-        protected OutputPort dcPin;
-        public byte[] displayBuffer = new byte[bufferSize];
-        protected OutputPort resetPin;
+        protected GpioPin dcPin;
+        public byte[] displayBuffer = new byte[BufferSize];
+        protected GpioPin resetPin;
 
         protected SPI Spi;
         protected byte[] SpiBuffer = new byte[1];
 
-        public AdaFruitSSD1306(ushort I2C_ADDRESS = 0x3C, int I2C_ClockRateKHz = 400, Cpu.Pin reset = (Cpu.Pin) 54)
+        public AdaFruitSSD1306(ushort I2C_ADDRESS = 0x3C, int I2C_ClockRateKHz = 400, Cpu.Pin reset = (Cpu.Pin)54)
         {
+            var gpio = GpioController.GetDefault();
+
+            if (gpio == null)
+            {
+                throw new Exception("There is no GPIO controller on this device.");
+            }
             AutoRefreshScreen = false;
             I2c = new I2CDevice.Configuration(I2C_ADDRESS, I2C_ClockRateKHz);
             //SoftwareI2CBus i2cbus = new SoftwareI2CBus(SecretLabs.NETMF.Hardware.Netduino.Pins.GPIO_PIN_A4, SecretLabs.NETMF.Hardware.Netduino.Pins.GPIO_PIN_A5);        
             //I2c = i2cbus.CreateI2CDevice(new I2CDevice.Configuration(0x3C, I2CTransactionTimeout));        
             //Connect the RST pin of the display to this Netduino pin        
-            resetPin = new OutputPort(Pins.GPIO_PIN_D10, false);
-            //resetPin = new OutputPort(reset, false);        
+            resetPin = gpio.OpenPin(ResetPin);
+            //resetPin = new GpioPin(reset, false);        
         }
 
         public AdaFruitSSD1306(Cpu.Pin dc, Cpu.Pin reset, Cpu.Pin chipSelect,
             SPI.SPI_module spiModule = SPI.SPI_module.SPI1, uint speedKHz = 10000)
         {
             AutoRefreshScreen = false;
+            var gpio = GpioController.GetDefault();
+
+            if (gpio == null)
+            {
+                throw new Exception("There is no GPIO controller on this device.");
+            }
 
             var spiConfig = new SPI.Configuration(
                 SPI_mod: spiModule,
@@ -48,9 +63,9 @@ namespace Ssd1306Test
                 );
 
             Spi = new SPI(spiConfig);
-
-            dcPin = new OutputPort(dc, false);
-            resetPin = new OutputPort(reset, false);
+            dcPin = gpio.OpenPin(DcPin);
+            resetPin = gpio.OpenPin(ResetPin);
+           
         }
 
         public I2CDevice.Configuration I2c { get; set; }
@@ -76,8 +91,8 @@ namespace Ssd1306Test
             {
                 for (var i = 0; i < w; i++)
                 {
-                    var Pixel = bitmap[i + (j/8)*w];
-                    Pixel &= (byte) (1 << (j%8));
+                    var Pixel = bitmap[i + (j / 8) * w];
+                    Pixel &= (byte)(1 << (j % 8));
                     if ((Pixel) != 0)
                     {
                         SetPixel(x + i, y + j, color);
@@ -104,7 +119,7 @@ namespace Ssd1306Test
                     line++;
                 }
 
-                if (line >= Height/8)
+                if (line >= Height / 8)
                 {
                     return; // ran out of space :(
                 }
@@ -119,7 +134,7 @@ namespace Ssd1306Test
         {
             for (var i = 0; i < 5; i++)
             {
-                displayBuffer[x + (line*128)] = Font[(c*5) + i];
+                displayBuffer[x + (line * 128)] = Font[(c * 5) + i];
                 x++;
             }
         }
@@ -145,7 +160,7 @@ namespace Ssd1306Test
             dx = x1 - x0;
             dy = Math.Abs(y1 - y0);
 
-            var err = dx/2;
+            var err = dx / 2;
             int ystep;
 
             if (y0 < y1)
@@ -220,7 +235,7 @@ namespace Ssd1306Test
         {
             var f = 1 - r;
             var ddF_x = 1;
-            var ddF_y = -2*r;
+            var ddF_y = -2 * r;
             var x = 0;
             var y = r;
 
@@ -262,7 +277,7 @@ namespace Ssd1306Test
         {
             var f = 1 - r;
             var ddF_x = 1;
-            var ddF_y = -2*r;
+            var ddF_y = -2 * r;
             var x = 0;
             var y = r;
 
@@ -311,11 +326,11 @@ namespace Ssd1306Test
 
             if (color == Color.White)
             {
-                displayBuffer[x + (y/8)*128] |= (byte) (1 << (y%8));
+                displayBuffer[x + (y / 8) * 128] |= (byte)(1 << (y % 8));
             }
             else
             {
-                displayBuffer[x + (y/8)*128] &= (byte) ~(1 << (y%8));
+                displayBuffer[x + (y / 8) * 128] &= (byte)~(1 << (y % 8));
             }
         }
 
@@ -359,7 +374,7 @@ namespace Ssd1306Test
 
         protected void SendCommand(Command cmd)
         {
-            SpiBuffer[0] = (byte) cmd;
+            SpiBuffer[0] = (byte)cmd;
 
             if (Spi != null)
             {
@@ -368,7 +383,7 @@ namespace Ssd1306Test
 
             if (I2c != null)
             {
-                I2CBus.GetInstance().Write(I2c, new byte[] {0x00, (byte) cmd}, I2CTransactionTimeout);
+                I2CBus.GetInstance().Write(I2c, new byte[] { 0x00, (byte)cmd }, I2CTransactionTimeout);
             }
         }
 
@@ -433,57 +448,57 @@ namespace Ssd1306Test
 
                 if (vcctype == VccType.EXTERNALVCC)
                 {
-                    SendCommand((Command) 0x9F); // external 9V        
+                    SendCommand((Command)0x9F); // external 9V        
                 }
 
                 else
                 {
-                    SendCommand((Command) 0xCF); // chargepump        
+                    SendCommand((Command)0xCF); // chargepump        
                 }
 
-                SendCommand((Command) 0xA1); // setment remap 95 to 0 (?)
+                SendCommand((Command)0xA1); // setment remap 95 to 0 (?)
                 SendCommand(Command.NORMALDISPLAY); // 0xA6
                 SendCommand(Command.DISPLAYALLON_RESUME); // 0xA4
                 SendCommand(Command.SETMULTIPLEX); // 0xA8
                 //SendCommand((Command)0x3F);  // 0x3F 1/64 duty
-                SendCommand((Command) 0x1F); // 0x1F 1/32 duty
+                SendCommand((Command)0x1F); // 0x1F 1/32 duty
                 SendCommand(Command.SETDISPLAYOFFSET); // 0xD3
                 SendCommand(0x0); // no offset
                 SendCommand(Command.SETDISPLAYCLOCKDIV); // 0xD5
-                SendCommand((Command) 0x80); // the suggested ratio 0x80
+                SendCommand((Command)0x80); // the suggested ratio 0x80
                 SendCommand(Command.SETPRECHARGE); // 0xd9        
 
                 if (vcctype == VccType.EXTERNALVCC)
                 {
-                    SendCommand((Command) 0x22); // external 9V        
+                    SendCommand((Command)0x22); // external 9V        
                 }
 
                 else
                 {
-                    SendCommand((Command) 0xF1); // DC/DC        
+                    SendCommand((Command)0xF1); // DC/DC        
                 }
 
                 SendCommand(Command.SETCOMPINS); // 0xDA
                 //SendCommand((Command)0x12); // disable COM left/right remap
-                SendCommand((Command) 0x02); ////128_32 = 02       128_64 = 12
+                SendCommand((Command)0x02); ////128_32 = 02       128_64 = 12
                 SendCommand(Command.SETVCOMDETECT); // 0xDB
-                SendCommand((Command) 0x40); // 0x20 is default
+                SendCommand((Command)0x40); // 0x20 is default
                 SendCommand(Command.MEMORYMODE); // 0x20
                 SendCommand(0x00); // 0x0 act like ks0108        
 
                 // left to right scan
-                SendCommand(Command.SEGREMAP | (Command) 0x1); //0xA0
+                SendCommand(Command.SEGREMAP | (Command)0x1); //0xA0
                 SendCommand(Command.COMSCANDEC);
                 //0xC8
                 SendCommand(Command.CHARGEPUMP); //0x8D        
 
                 if (vcctype == VccType.EXTERNALVCC)
                 {
-                    SendCommand((Command) 0x10); // disable        
+                    SendCommand((Command)0x10); // disable        
                 }
                 else
                 {
-                    SendCommand((Command) 0x14); // disable        
+                    SendCommand((Command)0x14); // disable        
                 }
 
                 SendCommand(Command.DISPLAYON); //--turn on oled panel
