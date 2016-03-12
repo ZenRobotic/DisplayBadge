@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
+using Windows.Devices.Enumeration;
 using Windows.Devices.Gpio;
+using Windows.Devices.I2c;
 
 namespace Ssd1306Test
 {
@@ -22,6 +24,7 @@ namespace Ssd1306Test
 
         protected SPI Spi;
         protected byte[] SpiBuffer = new byte[1];
+        private I2cDevice _i2c;
 
         public AdaFruitSSD1306(ushort I2C_ADDRESS = 0x3C, int I2C_ClockRateKHz = 400, Cpu.Pin reset = (Cpu.Pin)54)
         {
@@ -32,7 +35,11 @@ namespace Ssd1306Test
                 throw new Exception("There is no GPIO controller on this device.");
             }
             AutoRefreshScreen = false;
-            I2c = new I2CDevice.Configuration(I2C_ADDRESS, I2C_ClockRateKHz);
+            var settings = new I2cConnectionSettings(I2C_ADDRESS);
+            settings.BusSpeed = I2cBusSpeed.FastMode;
+            var aqs = I2cDevice.GetDeviceSelector();                     /* Get a selector string that will return all I2C controllers on the system */
+            var dis = DeviceInformation.FindAllAsync(aqs).AsTask().Result;            /* Find the I2C bus controller devices with our selector string             */
+            _i2c = I2cDevice.FromIdAsync(dis[0].Id, settings).AsTask().Result;    /* Create an I2cDevice with our selected bus controller and I2C settings    */
             //SoftwareI2CBus i2cbus = new SoftwareI2CBus(SecretLabs.NETMF.Hardware.Netduino.Pins.GPIO_PIN_A4, SecretLabs.NETMF.Hardware.Netduino.Pins.GPIO_PIN_A5);        
             //I2c = i2cbus.CreateI2CDevice(new I2CDevice.Configuration(0x3C, I2CTransactionTimeout));        
             //Connect the RST pin of the display to this Netduino pin        
@@ -65,10 +72,8 @@ namespace Ssd1306Test
             Spi = new SPI(spiConfig);
             dcPin = gpio.OpenPin(DcPin);
             resetPin = gpio.OpenPin(ResetPin);
-           
-        }
 
-        public I2CDevice.Configuration I2c { get; set; }
+        }
 
         public bool AutoRefreshScreen { get; set; }
 
@@ -381,9 +386,9 @@ namespace Ssd1306Test
                 Spi.Write(SpiBuffer);
             }
 
-            if (I2c != null)
+            if (_i2c != null)
             {
-                I2CBus.GetInstance().Write(I2c, new byte[] { 0x00, (byte)cmd }, I2CTransactionTimeout);
+                _i2c.Write(I2c, new byte[] { 0x00, (byte)cmd }, I2CTransactionTimeout);
             }
         }
 
@@ -409,7 +414,7 @@ namespace Ssd1306Test
             }
         }
 
-        public virtual void Refresh()
+        public void Refresh()
         {
             if (Spi != null)
             {
@@ -420,7 +425,7 @@ namespace Ssd1306Test
                 var I2CCommand = new byte[displayBuffer.Length + 1];
                 I2CCommand[0] = 0x40;
                 Array.Copy(displayBuffer, 0, I2CCommand, 1, displayBuffer.Length);
-                I2CBus.GetInstance().Write(I2c, I2CCommand, I2CTransactionTimeout);
+                _i2c.Write(I2CCommand);
             }
         }
 
