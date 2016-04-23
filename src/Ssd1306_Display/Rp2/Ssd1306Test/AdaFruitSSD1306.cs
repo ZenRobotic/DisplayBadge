@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
 using Windows.Devices.Enumeration;
 using Windows.Devices.Gpio;
@@ -18,15 +19,13 @@ namespace Ssd1306Test
         private const int Height = 32;
         private const int I2CTransactionTimeout = 1000; // ms
 
-        protected GpioPin dcPin;
-        public byte[] displayBuffer = new byte[BufferSize];
-        protected GpioPin resetPin;
-
-        protected SPI Spi;
-        protected byte[] SpiBuffer = new byte[1];
+        private GpioPin dcPin;
+        private byte[] displayBuffer = new byte[BufferSize];
+        private GpioPin resetPin;
         private I2cDevice _i2c;
+        private Font _font = new Font();
 
-        public AdaFruitSSD1306(ushort I2C_ADDRESS = 0x3C, int I2C_ClockRateKHz = 400, Cpu.Pin reset = (Cpu.Pin)54)
+        public AdaFruitSSD1306()
         {
             var gpio = GpioController.GetDefault();
 
@@ -35,7 +34,7 @@ namespace Ssd1306Test
                 throw new Exception("There is no GPIO controller on this device.");
             }
             AutoRefreshScreen = false;
-            var settings = new I2cConnectionSettings(I2C_ADDRESS);
+            var settings = new I2cConnectionSettings(0x3c);
             settings.BusSpeed = I2cBusSpeed.FastMode;
             var aqs = I2cDevice.GetDeviceSelector();                     /* Get a selector string that will return all I2C controllers on the system */
             var dis = DeviceInformation.FindAllAsync(aqs).AsTask().Result;            /* Find the I2C bus controller devices with our selector string             */
@@ -47,58 +46,27 @@ namespace Ssd1306Test
             //resetPin = new GpioPin(reset, false);        
         }
 
-        public AdaFruitSSD1306(Cpu.Pin dc, Cpu.Pin reset, Cpu.Pin chipSelect,
-            SPI.SPI_module spiModule = SPI.SPI_module.SPI1, uint speedKHz = 10000)
-        {
-            AutoRefreshScreen = false;
-            var gpio = GpioController.GetDefault();
-
-            if (gpio == null)
-            {
-                throw new Exception("There is no GPIO controller on this device.");
-            }
-
-            var spiConfig = new SPI.Configuration(
-                SPI_mod: spiModule,
-                ChipSelect_Port: chipSelect,
-                ChipSelect_ActiveState: false,
-                ChipSelect_SetupTime: 0,
-                ChipSelect_HoldTime: 0,
-                Clock_IdleState: false,
-                Clock_Edge: true,
-                Clock_RateKHz: speedKHz
-                );
-
-            Spi = new SPI(spiConfig);
-            dcPin = gpio.OpenPin(DcPin);
-            resetPin = gpio.OpenPin(ResetPin);
-
-        }
-
         public bool AutoRefreshScreen { get; set; }
 
         public void Dispose()
         {
             dcPin.Dispose();
             resetPin.Dispose();
-            Spi.Dispose();
 
             dcPin = null;
             resetPin = null;
-            Spi = null;
-            SpiBuffer = null;
             displayBuffer = null;
         }
 
-        public void DrawBitmap(int x, int y, ref byte[] bitmap, int w, int h, Color color)
+        public void DrawBitmap(int x, int y, [ReadOnlyArray]byte[] bitmap, int w, int h, Color color)
         {
             for (var j = 0; j < h; j++)
             {
                 for (var i = 0; i < w; i++)
                 {
-                    var Pixel = bitmap[i + (j / 8) * w];
-                    Pixel &= (byte)(1 << (j % 8));
-                    if ((Pixel) != 0)
+                    var pixel = bitmap[i + (j / 8) * w];
+                    pixel &= (byte)(1 << (j % 8));
+                    if ((pixel) != 0)
                     {
                         SetPixel(x + i, y + j, color);
                     }
@@ -139,69 +107,69 @@ namespace Ssd1306Test
         {
             for (var i = 0; i < 5; i++)
             {
-                displayBuffer[x + (line * 128)] = Font[(c * 5) + i];
+                displayBuffer[x + (line * 128)] = _font.GetByte((c * 5) + i);
                 x++;
             }
         }
 
-        // bresenham's algorithm - thx wikipedia
-        public void DrawLine(int x0, int y0, int x1, int y1, Color color)
-        {
-            var steep = (Math.Abs(y1 - y0) > Math.Abs(x1 - x0)) ? 1 : 0;
+        //// bresenham's algorithm - thx wikipedia
+        //public void DrawLine(int x0, int y0, int x1, int y1, Color color)
+        //{
+        //    var steep = (Math.Abs(y1 - y0) > Math.Abs(x1 - x0)) ? 1 : 0;
 
-            if (steep != 0)
-            {
-                Swap(ref x0, ref y0);
-                Swap(ref x1, ref y1);
-            }
+        //    if (steep != 0)
+        //    {
+        //        Swap(ref x0, ref y0);
+        //        Swap(ref x1, ref y1);
+        //    }
 
-            if (x0 > x1)
-            {
-                Swap(ref x0, ref x1);
-                Swap(ref y0, ref y1);
-            }
+        //    if (x0 > x1)
+        //    {
+        //        Swap(ref x0, ref x1);
+        //        Swap(ref y0, ref y1);
+        //    }
 
-            int dx, dy;
-            dx = x1 - x0;
-            dy = Math.Abs(y1 - y0);
+        //    int dx, dy;
+        //    dx = x1 - x0;
+        //    dy = Math.Abs(y1 - y0);
 
-            var err = dx / 2;
-            int ystep;
+        //    var err = dx / 2;
+        //    int ystep;
 
-            if (y0 < y1)
-            {
-                ystep = 1;
-            }
-            else
-            {
-                ystep = -1;
-            }
+        //    if (y0 < y1)
+        //    {
+        //        ystep = 1;
+        //    }
+        //    else
+        //    {
+        //        ystep = -1;
+        //    }
 
-            for (; x0 < x1; x0++)
-            {
-                if (steep != 0)
-                {
-                    SetPixel(y0, x0, color);
-                }
-                else
-                {
-                    SetPixel(x0, y0, color);
-                }
+        //    for (; x0 < x1; x0++)
+        //    {
+        //        if (steep != 0)
+        //        {
+        //            SetPixel(y0, x0, color);
+        //        }
+        //        else
+        //        {
+        //            SetPixel(x0, y0, color);
+        //        }
 
-                err -= dy;
+        //        err -= dy;
 
-                if (err < 0)
-                {
-                    y0 += ystep;
-                    err += dx;
-                }
-            }
+        //        if (err < 0)
+        //        {
+        //            y0 += ystep;
+        //            err += dx;
+        //        }
+        //    }
 
-            if (AutoRefreshScreen)
-            {
-                Refresh();
-            }
-        }
+        //    if (AutoRefreshScreen)
+        //    {
+        //        Refresh();
+        //    }
+        //}
 
         public void DrawRectangle(int x, int y, int w, int h, Color color)
         {
@@ -370,35 +338,24 @@ namespace Ssd1306Test
             }
         }
 
-        protected void Swap(ref int a, ref int b)
-        {
-            var t = a;
-            a = b;
-            b = t;
-        }
+        //protected void Swap(ref int a, ref int b)
+        //{
+        //    var t = a;
+        //    a = b;
+        //    b = t;
+        //}
 
         protected void SendCommand(Command cmd)
         {
-            SpiBuffer[0] = (byte)cmd;
-
-            if (Spi != null)
-            {
-                Spi.Write(SpiBuffer);
-            }
-
             if (_i2c != null)
             {
-                _i2c.Write(I2c, new byte[] { 0x00, (byte)cmd }, I2CTransactionTimeout);
+                //_i2c.Write(I2c, new byte[] { 0x00, (byte)cmd }, I2CTransactionTimeout);
+                _i2c.Write(new byte[] { 0x00, (byte)cmd });
             }
         }
 
         public void InvertDisplay(bool cmd)
         {
-            if (Spi != null)
-            {
-                dcPin.Write(DisplayCommand);
-            }
-
             if (cmd)
             {
                 SendCommand(Command.INVERTDISPLAY);
@@ -407,111 +364,99 @@ namespace Ssd1306Test
             {
                 SendCommand(Command.NORMALDISPLAY);
             }
-
-            if (Spi != null)
-            {
-                dcPin.Write(Data);
-            }
         }
 
         public void Refresh()
         {
-            if (Spi != null)
-            {
-                Spi.Write(displayBuffer);
-            }
-            else if (I2c != null)
-            {
-                var I2CCommand = new byte[displayBuffer.Length + 1];
-                I2CCommand[0] = 0x40;
-                Array.Copy(displayBuffer, 0, I2CCommand, 1, displayBuffer.Length);
-                _i2c.Write(I2CCommand);
-            }
+            var i2CCommand = new byte[displayBuffer.Length + 1];
+            i2CCommand[0] = 0x40;
+            Array.Copy(displayBuffer, 0, i2CCommand, 1, displayBuffer.Length);
+            _i2c.Write(i2CCommand);
         }
 
-        public void Initialize(VccType vcctype = VccType.SWITCHCAPVCC)
+        public void Initialize(VccType vcctype)
         {
-            if (Spi != null)
-            {
-                resetPin.Write(true);
+            //if (Spi != null)
+            //{
+            //    resetPin.Write(true);
 
-                Thread.Sleep(1);
-                // VDD (3.3V) goes high at start, lets just chill for a ms        
+            //    Thread.Sleep(1);
+            //    // VDD (3.3V) goes high at start, lets just chill for a ms        
 
-                resetPin.Write(false); // bring reset low        
+            //    resetPin.Write(false); // bring reset low        
 
-                Thread.Sleep(10);
-                // wait 10ms        
+            //    Thread.Sleep(10);
+            //    // wait 10ms        
 
-                resetPin.Write(true); // bring out of reset
-                dcPin.Write(DisplayCommand);
-                SendCommand(Command.DISPLAYOFF); // 0xAE
-                SendCommand(Command.SETLOWCOLUMN | 0x0); // low col = 0
-                SendCommand(Command.SETHIGHCOLUMN | 0x0); // hi col = 0
-                SendCommand(Command.SETSTARTLINE | 0x0); // line #0
-                SendCommand(Command.SETCONTRAST); // 0x81
+            //    resetPin.Write(true); // bring out of reset
+            //    dcPin.Write(DisplayCommand);
+            //    SendCommand(Command.DISPLAYOFF); // 0xAE
+            //    SendCommand(Command.SETLOWCOLUMN | 0x0); // low col = 0
+            //    SendCommand(Command.SETHIGHCOLUMN | 0x0); // hi col = 0
+            //    SendCommand(Command.SETSTARTLINE | 0x0); // line #0
+            //    SendCommand(Command.SETCONTRAST); // 0x81
 
-                if (vcctype == VccType.EXTERNALVCC)
-                {
-                    SendCommand((Command)0x9F); // external 9V        
-                }
+            //    if (vcctype == VccType.EXTERNALVCC)
+            //    {
+            //        SendCommand((Command)0x9F); // external 9V        
+            //    }
 
-                else
-                {
-                    SendCommand((Command)0xCF); // chargepump        
-                }
+            //    else
+            //    {
+            //        SendCommand((Command)0xCF); // chargepump        
+            //    }
 
-                SendCommand((Command)0xA1); // setment remap 95 to 0 (?)
-                SendCommand(Command.NORMALDISPLAY); // 0xA6
-                SendCommand(Command.DISPLAYALLON_RESUME); // 0xA4
-                SendCommand(Command.SETMULTIPLEX); // 0xA8
-                //SendCommand((Command)0x3F);  // 0x3F 1/64 duty
-                SendCommand((Command)0x1F); // 0x1F 1/32 duty
-                SendCommand(Command.SETDISPLAYOFFSET); // 0xD3
-                SendCommand(0x0); // no offset
-                SendCommand(Command.SETDISPLAYCLOCKDIV); // 0xD5
-                SendCommand((Command)0x80); // the suggested ratio 0x80
-                SendCommand(Command.SETPRECHARGE); // 0xd9        
+            //    SendCommand((Command)0xA1); // setment remap 95 to 0 (?)
+            //    SendCommand(Command.NORMALDISPLAY); // 0xA6
+            //    SendCommand(Command.DISPLAYALLON_RESUME); // 0xA4
+            //    SendCommand(Command.SETMULTIPLEX); // 0xA8
+            //    //SendCommand((Command)0x3F);  // 0x3F 1/64 duty
+            //    SendCommand((Command)0x1F); // 0x1F 1/32 duty
+            //    SendCommand(Command.SETDISPLAYOFFSET); // 0xD3
+            //    SendCommand(0x0); // no offset
+            //    SendCommand(Command.SETDISPLAYCLOCKDIV); // 0xD5
+            //    SendCommand((Command)0x80); // the suggested ratio 0x80
+            //    SendCommand(Command.SETPRECHARGE); // 0xd9        
 
-                if (vcctype == VccType.EXTERNALVCC)
-                {
-                    SendCommand((Command)0x22); // external 9V        
-                }
+            //    if (vcctype == VccType.EXTERNALVCC)
+            //    {
+            //        SendCommand((Command)0x22); // external 9V        
+            //    }
 
-                else
-                {
-                    SendCommand((Command)0xF1); // DC/DC        
-                }
+            //    else
+            //    {
+            //        SendCommand((Command)0xF1); // DC/DC        
+            //    }
 
-                SendCommand(Command.SETCOMPINS); // 0xDA
-                //SendCommand((Command)0x12); // disable COM left/right remap
-                SendCommand((Command)0x02); ////128_32 = 02       128_64 = 12
-                SendCommand(Command.SETVCOMDETECT); // 0xDB
-                SendCommand((Command)0x40); // 0x20 is default
-                SendCommand(Command.MEMORYMODE); // 0x20
-                SendCommand(0x00); // 0x0 act like ks0108        
+            //    SendCommand(Command.SETCOMPINS); // 0xDA
+            //    //SendCommand((Command)0x12); // disable COM left/right remap
+            //    SendCommand((Command)0x02); ////128_32 = 02       128_64 = 12
+            //    SendCommand(Command.SETVCOMDETECT); // 0xDB
+            //    SendCommand((Command)0x40); // 0x20 is default
+            //    SendCommand(Command.MEMORYMODE); // 0x20
+            //    SendCommand(0x00); // 0x0 act like ks0108        
 
-                // left to right scan
-                SendCommand(Command.SEGREMAP | (Command)0x1); //0xA0
-                SendCommand(Command.COMSCANDEC);
-                //0xC8
-                SendCommand(Command.CHARGEPUMP); //0x8D        
+            //    // left to right scan
+            //    SendCommand(Command.SEGREMAP | (Command)0x1); //0xA0
+            //    SendCommand(Command.COMSCANDEC);
+            //    //0xC8
+            //    SendCommand(Command.CHARGEPUMP); //0x8D        
 
-                if (vcctype == VccType.EXTERNALVCC)
-                {
-                    SendCommand((Command)0x10); // disable        
-                }
-                else
-                {
-                    SendCommand((Command)0x14); // disable        
-                }
+            //    if (vcctype == VccType.EXTERNALVCC)
+            //    {
+            //        SendCommand((Command)0x10); // disable        
+            //    }
+            //    else
+            //    {
+            //        SendCommand((Command)0x14); // disable        
+            //    }
 
-                SendCommand(Command.DISPLAYON); //--turn on oled panel
-                // Switch to 'data' mode
-                dcPin.Write(Data);
-            }
-            else
-            {
+            //    SendCommand(Command.DISPLAYON); //--turn on oled panel
+            //    // Switch to 'data' mode
+            //    dcPin.Write(Data);
+            //}
+            //else
+            //{
                 byte[] intBuffer;
 
                 if (Height == 32)
@@ -595,11 +540,12 @@ namespace Ssd1306Test
                         (byte) Command.DISPLAYON
                     };
 
-                    //turn on display        
-                }
-
-                I2CBus.GetInstance().Write(I2c, intBuffer, I2CTransactionTimeout);
+                //turn on display        
             }
+
+            //I2CBus.GetInstance().Write(I2c, intBuffer, I2CTransactionTimeout);
+            _i2c.Write(intBuffer);
+            //}
         }
     }
 
