@@ -18,10 +18,8 @@ namespace Ssd1306Test
         private const int Width = 128;
         private const int Height = 32;
         private const int I2CTransactionTimeout = 1000; // ms
-
-        private GpioPin dcPin;
+        
         private byte[] displayBuffer = new byte[BufferSize];
-        private GpioPin resetPin;
         private I2cDevice _i2c;
         private Font _font = new Font();
 
@@ -42,7 +40,7 @@ namespace Ssd1306Test
             //SoftwareI2CBus i2cbus = new SoftwareI2CBus(SecretLabs.NETMF.Hardware.Netduino.Pins.GPIO_PIN_A4, SecretLabs.NETMF.Hardware.Netduino.Pins.GPIO_PIN_A5);        
             //I2c = i2cbus.CreateI2CDevice(new I2CDevice.Configuration(0x3C, I2CTransactionTimeout));        
             //Connect the RST pin of the display to this Netduino pin        
-            resetPin = gpio.OpenPin(ResetPin);
+            //resetPin = gpio.OpenPin(ResetPin);
             //resetPin = new GpioPin(reset, false);        
         }
 
@@ -50,11 +48,11 @@ namespace Ssd1306Test
 
         public void Dispose()
         {
-            dcPin.Dispose();
-            resetPin.Dispose();
+            //dcPin.Dispose();
+            //resetPin.Dispose();
 
-            dcPin = null;
-            resetPin = null;
+            //dcPin = null;
+            //resetPin = null;
             displayBuffer = null;
         }
 

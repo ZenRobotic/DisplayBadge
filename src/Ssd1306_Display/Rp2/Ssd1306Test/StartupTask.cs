@@ -21,10 +21,14 @@ namespace Ssd1306Test
             // described in http://aka.ms/backgroundtaskdeferral
             //
 
-            var screen = new AdaFruitSSD1306();
-            screen.Initialize(VccType.SWITCHCAPVCC);
-            screen.ClearScreen();
-            screen.InvertDisplay(true);
+            using (var screen = new AdaFruitSSD1306())
+            {
+                screen.Initialize(VccType.SWITCHCAPVCC);
+                screen.ClearScreen();
+                screen.InvertDisplay(true);
+                //screen.DrawString(1, 1, "hello, ssd1306");
+                screen.DrawRectangle(1, 1, 10, 3, Color.Black);
+            }
         }
     }
 }
