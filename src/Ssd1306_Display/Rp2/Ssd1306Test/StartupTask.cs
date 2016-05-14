@@ -27,8 +27,19 @@ namespace Ssd1306Test
                 screen.ClearScreen();
                 screen.InvertDisplay(true);
                 //screen.DrawString(1, 1, "hello, ssd1306");
-                screen.DrawRectangle(1, 1, 10, 3, Color.Black);
+                //screen.DrawRectangle(1, 1, 10, 3, Color.Black);
             }
+        }
+        public  void    drawHalfMoose(AdaFruitSSD1306 screen)
+        {
+            screen.DrawRectangle(1, 5, 1, 4, Color.White);
+            screen.DrawRectangle(1, 8, 4, 1, Color.White);
+            screen.DrawRectangle(3, 1, 1, 4, Color.White);
+            screen.DrawRectangle(6, 6, 7, 7, Color.White);
+            screen.DrawRectangle(7, 8, 1, 3, Color.White);
+            screen.SetPixel(7, 11, Color.White);
+            screen.SetPixel(10, 11, Color.White);
+            screen.Refresh();
         }
     }
 }
